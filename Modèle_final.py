@@ -6,7 +6,6 @@ Created on Fri Mar 31 15:06:31 2023
 @author: user
 """
 
-
 from __future__ import print_function
 import datetime as dt
 import numpy as np
@@ -14,10 +13,11 @@ import matplotlib.pyplot as plt
 from scipy import optimize
 import pandas as pd
 
+
 DisplayPlots = True
 
 # parameters ------
-ndays = 100 #in MC sim
+ndays = 1000 #in MC sim
 np.random.seed(201)
 deltat = 1 # seconds
 StartDate = dt.datetime(2020,9,15,8,0,0)
@@ -57,7 +57,7 @@ sec_allocate_intraday= 60 # influence spread + plus on decsend plus le coef dire
 dollars_s_intraday = 8e10 #joue sur coef directeur pente après le pic mais trouver le juste milieu pour maintenir niveau spreads
 dollars_z_intraday = 8e10
 
-sec_momentum = 160 # réactivité montéé du pic ainsi que réactivité chute du pic
+sec_momentum = 300 # réactivité montéé du pic ainsi que réactivité chute du pic
 q_momentum = 3 #intensité du pic : si augmente, diminue spreads et augmente le pic et augmente "l'anomalie" , si baisse, diminue pic et augmente spread et diminue "anomalie"
 
 q_init_s = int(dollars_s_intraday/s0)
@@ -65,10 +65,17 @@ q_init_z = int(dollars_z_intraday/z0)
 
 risk_free_rate = (0.01/(256*8*3600))
 
-    
-returns_s = list(np.random.normal(0., 0.01, 28800)) # minute returns
-returns_z = list(np.random.normal(0., 0.01, 28800)) 
-returns_index = list(np.random.normal(0., 0.01, 28800))
+nbr_orders_markow = 100
+sec_markow = 28800
+dollars_markow = 8e9
+target_volatility_markow= 0.005
+
+s_min=[s0]
+z_min=[z0]
+
+returns_index=list(np.random.normal(0,0.025*0.025,28800)) #minute returns
+returns_s=list(np.random.normal(0,0.02*0.02,28800))
+returns_z=list(np.random.normal(0,0.03*0.03,28800))
 
 q_s = np.zeros(T*ndays+1)
 s = np.zeros(T*ndays+1)
@@ -96,7 +103,13 @@ dN_a_z_intra = np.zeros(T*ndays+1)
 dN_b_s_intra = np.zeros(T*ndays+1)
 dN_a_s_intra = np.zeros(T*ndays+1)
 
+dN_b_s_markow=np.zeros(T*ndays+1)
+dN_a_s_markow=np.zeros(T*ndays+1)
+dN_b_z_markow=np.zeros(T*ndays+1)
+dN_a_z_markow=np.zeros(T*ndays+1)
 
+q_z_markow = np.zeros(T*ndays+1)
+q_s_markow = np.zeros(T*ndays+1)
 q_z_intra = np.zeros(T*ndays+1)
 q_s_intra = np.zeros(T*ndays+1)
 q_z_momentum = np.zeros(T*ndays+1)
@@ -111,6 +124,10 @@ total_traded_momentum_s = []
 total_traded_noise_z = []
 total_traded_intraday_z = []
 total_traded_momentum_z = []
+total_traded_daily_s = []
+total_traded_daily_z = []
+
+
 
 # ---------------------------
 
@@ -170,8 +187,11 @@ def model(state):
     s[0] = RoundTick_s(s0)
     index[0] = 100
     
+    weights_markow_0= [0.5,0.5]
+    
     if state ==0 :  # Simple automated market making with noise traders 
         for ind in range(ndays):
+            print(ind)
             
             dW_s = np.array(np.random.normal(0., 1., T))
             u_b_s = np.random.uniform(0., 1., T)
@@ -413,6 +433,10 @@ def model(state):
                 returns_z.append(np.log(z[counter]/z[counter-1]))
                 returns_index.append(np.log(index[counter]/index[counter-1]))
                 
+                if t%60==0:
+                    s_min.append(s[counter])
+                    z_min.append(z[counter])
+                
             
 
 
@@ -581,32 +605,31 @@ def model(state):
                     total_traded_intraday_z.append(abs(q0_z_intra*z[counter-1]))
                 
                 #MOMENTUM TRADERS
-                
                 if (sum(returns_index[-sec_momentum::]) / sec_momentum) > (returns_index[-1]):
-                        
+                    
                     q0_s_momentum = q_momentum*q0_s 
                     q0_z_momentum = q_momentum*q0_z
-                        
-                    q_s_momentum[counter]=(q0_s_momentum)
-                    q_z_momentum[counter]=(q0_z_momentum)
-            
-                    q_s[counter]= q_s[counter] + q0_s_momentum
-                    q_z[counter]= q_z[counter] + q0_z_momentum
-                        
-                    total_traded_momentum_s.append(abs(q0_s_momentum*s[counter-1]))
-                    total_traded_momentum_z.append(abs(q0_z_momentum*z[counter-1]))
-                        
-                elif (sum(returns_index[-sec_momentum::]) / sec_momentum)< (returns_index[-1]):
-                        
-                    q0_s_momentum = -q_momentum*q0_s 
-                    q0_z_momentum = -q_momentum*q0_z
-                        
+                    
                     q_s_momentum[counter]=(q0_s_momentum)
                     q_z_momentum[counter]=(q0_z_momentum)
         
                     q_s[counter]= q_s[counter] + q0_s_momentum
                     q_z[counter]= q_z[counter] + q0_z_momentum
-                        
+                    
+                    total_traded_momentum_s.append(abs(q0_s_momentum*s[counter-1]))
+                    total_traded_momentum_z.append(abs(q0_z_momentum*z[counter-1]))
+                    
+                elif (sum(returns_index[-sec_momentum::]) / sec_momentum)< (returns_index[-1]):
+                    
+                    q0_s_momentum = -q_momentum*q0_s 
+                    q0_z_momentum = -q_momentum*q0_z
+                    
+                    q_s_momentum[counter]=(q0_s_momentum)
+                    q_z_momentum[counter]=(q0_z_momentum)
+        
+                    q_s[counter]= q_s[counter] + q0_s_momentum
+                    q_z[counter]= q_z[counter] + q0_z_momentum
+                    
                     total_traded_momentum_s.append(abs(q0_s_momentum*s[counter-1]))
                     total_traded_momentum_z.append(abs(q0_z_momentum*z[counter-1]))
                     
@@ -661,6 +684,10 @@ def model(state):
                 returns_z.append(np.log(z[counter]/z[counter-1]))
                 returns_index.append(np.log(index[counter]/index[counter-1]))
                 
+                if t%60==0:
+                    s_min.append(s[counter])
+                    z_min.append(z[counter])
+                
             
 
 
@@ -708,6 +735,21 @@ def model(state):
         print("Ratio noise traders s/z", sum_total_traded_noise_s / sum_total_traded_noise_z)
         print("Ratio momentum traders s/z", sum_total_traded_momentum_s / sum_total_traded_momentum_z)
         print("Ratio intraday traders s/z", sum_total_traded_intraday_s / sum_total_traded_intraday_z)
+        print("\n")
+        print("Spread moyen S tick unit", (1./TickSize_s)*np.mean(delta_s))
+        print("Spread moyen Z tick unit", (1./TickSize_z)*np.mean(delta_z))
+        print("Spread max S tick unit", (1./TickSize_s)*np.max(delta_s))
+        print("Spread max Z tick unit", (1./TickSize_z)*np.max(delta_z))
+        print("\n")
+        print("Spread moyen S", np.mean(delta_s))
+        print("Spread moyen Z", np.mean(delta_z))
+        print("Spread max S ",  np.max(delta_s))
+        print("Spread max Z tick unit",np.max(delta_z))
+        print("\n")
+        print("Quantité moyenne S tradée", np.mean(np.abs(q_s)))
+        print("Quantité moyenne Z tradée", np.mean(np.abs(q_z)))
+        print("Quantité max S tradée", np.max(np.abs(q_s)))
+        print("Quantité max Z tradée", np.max(np.abs(q_z)))
         print("\n")
         
 
@@ -779,12 +821,299 @@ def model(state):
             
              plt.show()
                 
+    elif state==3:
+        for ind in range(ndays):
+            print(ind)
+    
+            #weights_markow = allocate_funds(pd.DataFrame(np.array([np.array(returns_s[-28801:-1]),returns_z[-28801:-1],np.full(len(returns_s[-28801:-1]), risk_free_rate)]).T, columns=['Asset s','Asset z', 'Risk free rate']), target_volatility)[0]
+            #with index
+            weights_markow = allocate_funds(pd.DataFrame(np.array([returns_index[-sec_markow:-1],np.full(len(returns_s[-sec_markow:-1]), risk_free_rate)]).T, columns=['Index', 'Risk free rate']), target_volatility_markow)[0]
+            
+            #using historical returns to simplify
+            print(weights_markow)
+            dW_s = np.array(np.random.normal(0., 1., T))
+            u_b_s = np.random.uniform(0., 1., T)
+            u_a_s = np.random.uniform(0., 1., T)
+
                 
+            dW_z = np.array(np.random.normal(0., 1., T))
+            u_b_z = np.random.uniform(0., 1., T)
+            u_a_z = np.random.uniform(0., 1., T)
+            
+                        
+            weights_intraday_s = [0,1]
+            weights_intraday_z = [0,1]
+             
+            for t in range(T):
+                counter+=1
+                                
+                if t%(int(T/nbr_orders_markow))==0:
+                    q0_s_markow = int(((weights_markow_0-weights_markow)[0]/2*dollars_markow/s[counter-1])/nbr_orders_markow) # rebalancing orders in quantity
+                    q0_z_markow = ((weights_markow_0-weights_markow)[0]/2*dollars_markow/z[counter-1])/nbr_orders_markow
+        
+                    q_s[counter]= q_s[counter] + q0_s_markow
+                    q_z[counter]= q_z[counter] + q0_z_markow
+                    q_s_markow[counter]= q0_s_markow
+                    q_z_markow[counter]= q0_z_markow
+                    total_traded_daily_s.append(abs(q0_s_markow*s[counter-1]))
+                    total_traded_daily_z.append(abs(q0_z_markow*z[counter-1]))
+
+                if t%(int(T/nbr_orders_intraday))==0:
+            
+                   
+                    target_volatility_s = 0.0001 * t * (T- t) / (5000 * T)
+                    new_weights_intraday_s = allocate_funds(pd.DataFrame(np.array([np.array(returns_s[-(sec_allocate_intraday+1):-1]),np.full(len(returns_s[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_s)[0]
+                    new_weights_intraday_s_list.append(new_weights_intraday_s[0])
+                    
+                    target_volatility_z = 0.0001 * t * (T- t) / (5000 * T)
+                    new_weights_intraday_z = allocate_funds(pd.DataFrame(np.array([np.array(returns_z[-(sec_allocate_intraday+1):-1]),np.full(len(returns_z[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_z)[0]
+                    new_weights_intraday_z_list.append(new_weights_intraday_z[0])
+                    
+                    #FOR ASSET S
+
+                    q0_s_intra = int(((dollars_s_intraday/nbr_orders_intraday)*(new_weights_intraday_s - weights_intraday_s)[0])/s[counter-1]) # quantity to buy
+
+                    weights_intraday_s = new_weights_intraday_s # we actualize the actual weights
+            
+                    #FOR ASSET Z
+                    q0_z_intra = ((dollars_z_intraday/nbr_orders_intraday)*(new_weights_intraday_z - weights_intraday_z)[0])/z[counter-1] # quantity to buy
+                        
+                    weights_intraday_z = new_weights_intraday_z # we actualize the actual weights
+
+                    q_s[counter] =  q_s[counter] + q0_s_intra
+                    q_z[counter] =  q_z[counter] + q0_z_intra
+                    q_s_intra[counter] = q0_s_intra
+                    q_z_intra[counter] = q0_z_intra
+                    total_traded_intraday_s.append(abs(q0_s_intra*s[counter-1]))
+                    total_traded_intraday_z.append(abs(q0_z_intra*z[counter-1]))
+                
+                #MOMENTUM TRADERS
+                if (sum(returns_index[-sec_momentum::]) / sec_momentum) > (returns_index[-1]):
+                    
+                    q0_s_momentum = q_momentum*q0_s 
+                    q0_z_momentum = q_momentum*q0_z
+                    
+                    q_s_momentum[counter]=(q0_s_momentum)
+                    q_z_momentum[counter]=(q0_z_momentum)
+        
+                    q_s[counter]= q_s[counter] + q0_s_momentum
+                    q_z[counter]= q_z[counter] + q0_z_momentum
+                    
+                    total_traded_momentum_s.append(abs(q0_s_momentum*s[counter-1]))
+                    total_traded_momentum_z.append(abs(q0_z_momentum*z[counter-1]))
+                    
+                elif (sum(returns_index[-sec_momentum::]) / sec_momentum)< (returns_index[-1]):
+                    
+                    q0_s_momentum = -q_momentum*q0_s 
+                    q0_z_momentum = -q_momentum*q0_z
+                    
+                    q_s_momentum[counter]=(q0_s_momentum)
+                    q_z_momentum[counter]=(q0_z_momentum)
+        
+                    q_s[counter]= q_s[counter] + q0_s_momentum
+                    q_z[counter]= q_z[counter] + q0_z_momentum
+                    
+                    total_traded_momentum_s.append(abs(q0_s_momentum*s[counter-1]))
+                    total_traded_momentum_z.append(abs(q0_z_momentum*z[counter-1]))
+                    
+        
+                    
+                # Noise Traders
+                lambda_b_s = A_s * np.exp(-k * delta_b_s[counter - 1])
+                lambda_a_s = A_s * np.exp(-k * delta_a_s[counter - 1])
+                lambda_b_z = A_z * np.exp(-k_z * delta_b_z[counter - 1])
+                lambda_a_z = A_z * np.exp(-k_z * delta_a_z[counter - 1])
+                
+                if u_b_s[t] < lambda_b_s * deltat:
+                    dN_b_s[counter] = 1. 
+                else:
+                    dN_b_s[counter] = 0.
+                if u_a_s[t] < lambda_a_s * deltat:
+                    dN_a_s[counter] = 1.
+                else:
+                    dN_a_s[counter] = 0.
+                N_b_s[counter] = N_b_s[counter-1] + dN_b_s[counter]
+                N_a_s[counter] = N_a_s[counter-1] + dN_a_s[counter]
+                q_s[counter] =  q_s[counter] + q0_s * (N_b_s[counter] - N_a_s[counter])
+                
+                if u_b_z[t] < lambda_b_z * deltat:
+                    dN_b_z[counter] = 1. 
+                else:
+                    dN_b_z[counter] = 0.
+                if u_a_z[t] < lambda_a_z * deltat:
+                    dN_a_z[counter] = 1.
+                else:
+                    dN_a_z[counter] = 0.
+                N_b_z[counter] = N_b_z[counter-1] + dN_b_z[counter]
+                N_a_z[counter] = N_a_z[counter-1] + dN_a_z[counter]
+                q_z[counter] = q_z[counter] + q0_z * (N_b_z[counter] - N_a_z[counter])
+                
+                total_traded_noise_s.append(abs(q0_s * (N_b_s[counter] - N_a_s[counter]) * s[counter-1]))
+                total_traded_noise_z.append(abs(q0_z * (N_b_z[counter] - N_a_z[counter]) * z[counter-1]))
+                
+
+                  # Avellaneda-Stoikov model
+                delta_b_s[counter] = RoundTick_s(max(0.5*gamma_s*sigma_s*sigma_s*T+(1./gamma_s)*np.log(1.+gamma_s/k)+gamma_s*sigma_s*sigma_s*T*q_s[counter],0.)) # simpifier 
+                delta_a_s[counter] = RoundTick_s(max(0.5*gamma_s*sigma_s*sigma_s*T+(1./gamma_s)*np.log(1.+gamma_s/k)-gamma_s*sigma_s*sigma_s*T*q_s[counter],0.))
+                delta_b_z[counter] = RoundTick_z(max(0.5*gamma_z*sigma_z*sigma_z*T+(1./gamma_z)*np.log(1.+gamma_z/k_z)+gamma_z*sigma_z*sigma_z*T*q_z[counter],0))
+                delta_a_z[counter] = RoundTick_z(max(0.5*gamma_z*sigma_z*sigma_z*T+(1./gamma_z)*np.log(1.+gamma_z/k_z)-gamma_z*sigma_z*sigma_z*T*q_z[counter],0))
+
+
+                s[counter] = RoundTick_s(s[counter-1] + theta_s*q_s[counter] + sigma_s * dW_s[t])
+                z[counter] = RoundTick_z(z[counter-1] + theta_z*q_z[counter] + sigma_z * dW_z[t])
+                index[counter]=0.5*(s[counter]/s[0])*100 + 0.5*(z[counter]/z[0])*100
+                
+                returns_s.append(np.log(s[counter]/s[counter-1]))
+                returns_z.append(np.log(z[counter]/z[counter-1]))
+                returns_index.append(np.log(index[counter]/index[counter-1]))
+                
+                if t%60==0:
+                    s_min.append(s[counter])
+                    z_min.append(z[counter])
+                
+            
+
+
+        delta_b_s[0] = delta_b_s[1]
+        delta_a_s[0] = delta_a_s[1]
+        delta_b_z[0] = delta_b_z[1]
+        delta_a_z[0] = delta_a_z[1]
+        
+        p_b_s = s - delta_b_s
+        p_a_s = s + delta_a_s
+        delta_s = delta_a_s + delta_b_s
+        
+        p_b_z = z - delta_b_z
+        p_a_z = z + delta_a_z
+        delta_z = delta_a_z + delta_b_z
+
+        dx_s = q0_s * (np.multiply(p_a_s,dN_a_s) - np.multiply(p_b_s,dN_b_s))
+        x_s = np.cumsum(dx_s)
+        dx_z = q0_z * (np.multiply(p_a_z,dN_a_z) - np.multiply(p_b_z,dN_b_z))
+        x_z = np.cumsum(dx_z)
+        pnl = x_s + np.multiply(q_s,s) + x_z + np.multiply(q_z,z)
+
+        AllPnls[ind] = pnl[-1]
+        q_sum_sq_s += np.sum(np.multiply(q_s,q_s))
+        q_sum_s += np.sum(q_s)
+        q_var_s = (1./(ndays * n)) * q_sum_sq_s - ((1./(ndays * n))  * q_sum_s) * ((1./(ndays * n))  * q_sum_s)
+        q_sum_sq_z += np.sum(np.multiply(q_z,q_z))
+        q_sum_z += np.sum(q_z)
+        q_var_z = (1./(ndays * n)) * q_sum_sq_z - ((1./(ndays * n))  * q_sum_z) * ((1./(ndays * n))  * q_sum_z)
+        
+        
+        sum_total_traded_noise_s=np.sum(total_traded_noise_s)
+        sum_total_traded_intraday_s=np.sum(total_traded_intraday_s)
+        sum_total_traded_momentum_s=np.sum(total_traded_momentum_s)
+        sum_total_traded_noise_z=np.sum(total_traded_noise_z)
+        sum_total_traded_intraday_z=np.sum(total_traded_intraday_z)
+        sum_total_traded_momentum_z=np.sum(total_traded_momentum_z)
+        sum_total_traded_daily_s = np.sum(total_traded_daily_s)
+        sum_total_traded_daily_z = np.sum(total_traded_daily_z)
+        print("\n")
+        print("Proportion for s noise trades / (noise trades + intraday trades + momentum trades)", sum_total_traded_noise_s / (sum_total_traded_noise_s+sum_total_traded_intraday_s+sum_total_traded_momentum_s))
+        print("Proportion for z noise trades / (noise trades + intraday trades + momentum trades)", sum_total_traded_noise_z / (sum_total_traded_noise_z+sum_total_traded_intraday_z+sum_total_traded_momentum_z))
+        print("\n")
+        print("Proportion for s momentum trades / (intraday trades + momentum trades)", sum_total_traded_momentum_s / (sum_total_traded_intraday_s+sum_total_traded_momentum_s))
+        print("Proportion for z momentum trades / (intraday trades + momentum trades)", sum_total_traded_momentum_z / (sum_total_traded_intraday_z+sum_total_traded_momentum_z))
+        print("\n")
+        print("Proportion for s total intraday trades / (markow trades)", (sum_total_traded_noise_s+sum_total_traded_intraday_s+sum_total_traded_momentum_s) / sum_total_traded_daily_s)
+        print("Proportion for z total intraday trades / (markow trades)", (sum_total_traded_noise_z+sum_total_traded_intraday_z+sum_total_traded_momentum_z) / sum_total_traded_daily_z)
+        print("\n")
+        print("Ratio noise traders s/z", sum_total_traded_noise_s / sum_total_traded_noise_z)
+        print("Ratio momentum traders s/z", sum_total_traded_momentum_s / sum_total_traded_momentum_z)
+        print("Ratio intraday traders s/z", sum_total_traded_intraday_s / sum_total_traded_intraday_z)
+        print("\n")
+        print("Spread moyen S tick unit", (1./TickSize_s)*np.mean(delta_s))
+        print("Spread moyen Z tick unit", (1./TickSize_z)*np.mean(delta_z))
+        print("Spread max S tick unit", (1./TickSize_s)*np.max(delta_s))
+        print("Spread max Z tick unit", (1./TickSize_z)*np.max(delta_z))
+        print("\n")
+        print("Spread moyen S", np.mean(delta_s))
+        print("Spread moyen Z", np.mean(delta_z))
+        print("Spread max S ",  np.max(delta_s))
+        print("Spread max Z tick unit",np.max(delta_z))
+        print("\n")
+        print("Quantité moyenne S tradée", np.mean(np.abs(q_s)))
+        print("Quantité moyenne Z tradée", np.mean(np.abs(q_z)))
+        print("Quantité max S tradée", np.max(np.abs(q_s)))
+        print("Quantité max Z tradée", np.max(np.abs(q_z)))
+        print("\n")
+        
+
+        if DisplayPlots:
+             print("Displaying plots -----------------------------")
+        
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(T*ndays+1), np.array([p_b_s]).T, '-')
+             plt.plot(range(ndays*T+1), np.array([s]).T, '-')
+             plt.plot(range(ndays*T+1), np.array([p_a_s]).T, '-')
+             plt.title('asset price: bid/mid/ask for asset s')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+            
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_s,delta_a_s,delta_s]).T, '-')
+             plt.legend(['delta_b','delta_a','delta'])
+             plt.title('spreads (in tick units) for asset s')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+        
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), 1e-3 * q_s, '-')
+             plt.title('market-maker inventory (in K) for s')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+             
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), np.array([p_b_z]).T, '-')
+             plt.plot(range(ndays*T+1), np.array([z]).T, '-')
+             plt.plot(range(ndays*T+1), np.array([p_a_z]).T, '-')
+             plt.title('asset price: bid/mid/ask for asset z')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+            
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z,delta_a_z,delta_z]).T, '-')
+             plt.legend(['delta_b','delta_a','delta'])
+             plt.title('spreads (in tick units) for asset z')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+        
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), 1e-3 * q_z, '-')
+             plt.title('market-maker inventory (in K) for z')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+        
+             plt.figure()
+             ax = plt.gca()
+             ax.ticklabel_format(axis='y', useOffset=False)
+             plt.plot(range(ndays*T+1), pnl, '-')
+             plt.title('market-maker pnl (in USD)')
+             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+             plt.xlabel("Days")
+            
+            
+             plt.show()
+                          
     else:
         return 0
 
 import math
-def display_corr(tau_max=5000):
+def display_corr(tau_max=5000,s=s,z=z):
     
     def artanh(x):
         return 0.5*math.log((1+x)/(1-x))
@@ -802,6 +1131,7 @@ def display_corr(tau_max=5000):
     high=[] 
     tenors=list(range(1,tau_max))
     for tau in tenors:
+        print(tau)
         ret_x=np.divide(x[tau:]-x[:-tau],x[-tau])
         ret_y=np.divide(y[tau:]-y[:-tau],y[-tau])
         rho_mat=np.corrcoef(ret_x,ret_y)
@@ -814,6 +1144,42 @@ def display_corr(tau_max=5000):
     plt.plot(BtcEuroverlapping)
     plt.title("Overlapping correlation of Eurusd and Btc  log returns")
     plt.xlabel("Tau : Increments of 1s")
+    plt.ylabel("Pearson Correlation")
+    plt.plot(high, label='Low', c='g')
+    plt.plot(low, label='High', c='r')
+    plt.legend()
+    
+def display_corr_min(tau_max=2880,s_min=s_min, z_min=z_min):
+    
+    def artanh(x):
+        return 0.5*math.log((1+x)/(1-x))
+    
+    def tanh(x):
+        return (math.exp(x)-math.exp(-x))/(math.exp(x)+math.exp(-x))
+       
+    
+    x=np.array(s_min)
+    y=np.array(z_min)
+    
+    BtcEuroverlapping=[]
+    
+    low=[]
+    high=[] 
+    tenors=list(range(1,tau_max))
+    for tau in tenors:
+        print(tau)
+        ret_x=np.divide(x[tau:]-x[:-tau],x[-tau])
+        ret_y=np.divide(y[tau:]-y[:-tau],y[-tau])
+        rho_mat=np.corrcoef(ret_x,ret_y)
+        BtcEuroverlapping.append(rho_mat[0,1])
+        r=rho_mat[0,1]
+        SE=1/np.sqrt(int(len(ret_x)/tau)-3)
+        low.append(tanh(artanh(r)-1.96*SE) )
+        high.append(tanh(artanh(r)+1.96*SE) )
+    
+    plt.plot(BtcEuroverlapping)
+    plt.title("Overlapping correlation of Eurusd and Btc  log returns")
+    plt.xlabel("Tau : Increments of 1m")
     plt.ylabel("Pearson Correlation")
     plt.plot(high, label='Low', c='g')
     plt.plot(low, label='High', c='r')
