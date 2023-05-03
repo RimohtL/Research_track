@@ -1149,7 +1149,7 @@ def display_corr(tau_max=5000,s=s,z=z):
     plt.plot(low, label='High', c='r')
     plt.legend()
     
-def display_corr_min(tau_max=2880,s_min=s_min, z_min=z_min):
+def display_corr_min(tau_max=2880,s_min=s_min, z_min=z_min, IC=True):
     
     def artanh(x):
         return 0.5*math.log((1+x)/(1-x))
@@ -1177,10 +1177,40 @@ def display_corr_min(tau_max=2880,s_min=s_min, z_min=z_min):
         low.append(tanh(artanh(r)-1.96*SE) )
         high.append(tanh(artanh(r)+1.96*SE) )
     
-    plt.plot(BtcEuroverlapping)
-    plt.title("Overlapping correlation of Eurusd and Btc  log returns")
-    plt.xlabel("Tau : Increments of 1m")
-    plt.ylabel("Pearson Correlation")
-    plt.plot(high, label='Low', c='g')
-    plt.plot(low, label='High', c='r')
-    plt.legend()
+    if IC==True:
+        
+        plt.plot(BtcEuroverlapping)
+        plt.title("Overlapping correlation of Eurusd and Btc  log returns")
+        plt.xlabel("Tau : Increments of 1m")
+        plt.ylabel("Pearson Correlation")
+        plt.plot(high, label='Low', c='g')
+        plt.plot(low, label='High', c='r')
+        plt.legend()
+    else:
+        plt.plot(BtcEuroverlapping)
+        plt.title("Overlapping correlation of Eurusd and Btc  log returns")
+        plt.xlabel("Tau : Increments of 1m")
+        plt.ylabel("Pearson Correlation")
+        plt.legend()
+
+if __name__ == '__main__':
+    model(2)
+    '''
+    display_corr()
+    display_corr_min()
+    display_corr_min(20000)
+    display_corr_min(20000, IC=False)
+    plt.plot(s_min)
+    plt.plot(z_min)
+    '''
+
+    '''
+    model(3)
+    display_corr(s=s[300000::],z=z[300000::])
+    display_corr_min(s_min=s_min[5000::],z_min=z_min[5000::])
+    display_corr_min(20000,s_min=s_min[5000::],z_min=z_min[5000::])
+    display_corr_min(20000, IC=False)
+    plt.plot(s_min)
+    plt.plot(z_min)
+    '''
+
