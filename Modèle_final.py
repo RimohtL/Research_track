@@ -5,7 +5,6 @@ Created on Fri Mar 31 15:06:31 2023
 
 @author: user
 """
-
 from __future__ import print_function
 import datetime as dt
 import numpy as np
@@ -14,14 +13,15 @@ from scipy import optimize
 import pandas as pd
 
 
-DisplayPlots = True
+DisplayPlots = False
+scale_factor=10
 
 # parameters ------
-ndays = 1000 #in MC sim
+ndays = 100 #in MC sim
 np.random.seed(201)
 deltat = 1 # seconds
 StartDate = dt.datetime(2020,9,15,8,0,0)
-date_list = [StartDate + dt.timedelta(seconds=x * deltat) for x in range(0, int(8*3600))]
+date_list = [StartDate + dt.timedelta(seconds=x * deltat) for x in range(0, int(8*3600*scale_factor))]
 date_text= [x.strftime('%Y-%m-%d %H:%M:%S') for x in date_list]
 n = len(date_list)
 T = n
@@ -54,11 +54,11 @@ nbr_orders_intraday = 100 #influence la croissance après le pic mais également
 
 sec_allocate_intraday= 60 # influence spread + plus on decsend plus le coef directeur pente augmente (Volatilités plus hautes sont atteintes + intraday trades)
 
-dollars_s_intraday = 8e10 #joue sur coef directeur pente après le pic mais trouver le juste milieu pour maintenir niveau spreads
-dollars_z_intraday = 8e10
+dollars_s_intraday = 9e10 #joue sur coef directeur pente après le pic mais trouver le juste milieu pour maintenir niveau spreads
+dollars_z_intraday = 9e10
 
 sec_momentum = 300 # réactivité montéé du pic ainsi que réactivité chute du pic
-q_momentum = 3 #intensité du pic : si augmente, diminue spreads et augmente le pic et augmente "l'anomalie" , si baisse, diminue pic et augmente spread et diminue "anomalie"
+q_momentum = 2.8 #intensité du pic : si augmente, diminue spreads et augmente le pic et augmente "l'anomalie" , si baisse, diminue pic et augmente spread et diminue "anomalie"
 
 q_init_s = int(dollars_s_intraday/s0)
 q_init_z = int(dollars_z_intraday/z0)
@@ -67,15 +67,15 @@ risk_free_rate = (0.01/(256*8*3600))
 
 nbr_orders_markow = 100
 sec_markow = 28800
-dollars_markow = 8e9
+dollars_markow = 8e2
 target_volatility_markow= 0.005
-
-s_min=[s0]
-z_min=[z0]
 
 returns_index=list(np.random.normal(0,0.025*0.025,28800)) #minute returns
 returns_s=list(np.random.normal(0,0.02*0.02,28800))
 returns_z=list(np.random.normal(0,0.03*0.03,28800))
+
+s_min=[s0]
+z_min=[z0]
 
 q_s = np.zeros(T*ndays+1)
 s = np.zeros(T*ndays+1)
@@ -533,7 +533,7 @@ def model(state):
              plt.plot(range(ndays*T+1), q_s_momentum, '-')
              plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
              plt.xlabel("Days")
-             plt.title('intraday traded quantity for s')
+             plt.title('momentum traded quantity for s')
              
              plt.figure()
              ax = plt.gca()
@@ -541,7 +541,7 @@ def model(state):
              plt.plot(range(ndays*T+1), q_z_momentum, '-')
              plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
              plt.xlabel("Days")
-             plt.title('intraday traded quantity for z')
+             plt.title('momentum traded quantity for z')
         
              plt.figure()
              ax = plt.gca()
@@ -578,11 +578,11 @@ def model(state):
                 if t%(int(T/nbr_orders_intraday))==0:
             
                    
-                    target_volatility_s = 0.0001 * t * (T- t) / (5000 * T)
+                    target_volatility_s = 0.0001 * t/scale_factor * (T- t) / (5000 * T)
                     new_weights_intraday_s = allocate_funds(pd.DataFrame(np.array([np.array(returns_s[-(sec_allocate_intraday+1):-1]),np.full(len(returns_s[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_s)[0]
                     new_weights_intraday_s_list.append(new_weights_intraday_s[0])
                     
-                    target_volatility_z = 0.0001 * t * (T- t) / (5000 * T)
+                    target_volatility_z = 0.0001 * t/scale_factor * (T- t) / (5000 * T)
                     new_weights_intraday_z = allocate_funds(pd.DataFrame(np.array([np.array(returns_z[-(sec_allocate_intraday+1):-1]),np.full(len(returns_z[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_z)[0]
                     new_weights_intraday_z_list.append(new_weights_intraday_z[0])
                     
@@ -754,73 +754,105 @@ def model(state):
         
 
         if DisplayPlots:
-             print("Displaying plots -----------------------------")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(T*ndays+1), np.array([p_b_s]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([s]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([p_a_s]).T, '-')
-             plt.title('asset price: bid/mid/ask for asset s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-            
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_s,delta_a_s,delta_s]).T, '-')
-             plt.legend(['delta_b','delta_a','delta'])
-             plt.title('spreads (in tick units) for asset s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), 1e-3 * q_s, '-')
-             plt.title('market-maker inventory (in K) for s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-             
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), np.array([p_b_z]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([z]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([p_a_z]).T, '-')
-             plt.title('asset price: bid/mid/ask for asset z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-            
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z,delta_a_z,delta_z]).T, '-')
-             plt.legend(['delta_b','delta_a','delta'])
-             plt.title('spreads (in tick units) for asset z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), 1e-3 * q_z, '-')
-             plt.title('market-maker inventory (in K) for z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), pnl, '-')
-             plt.title('market-maker pnl (in USD)')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-            
-            
-             plt.show()
-                
+            print("Displaying plots -----------------------------")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(T*ndays+1), np.array([p_b_s]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([s]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([p_a_s]).T, '-')
+            plt.title('asset price: bid/mid/ask for asset s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_s,delta_a_s,delta_s]).T, '-')
+            plt.legend(['delta_b','delta_a','delta'])
+            plt.title('spreads (in tick units) for asset s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s, '-')
+            plt.title('market-maker inventory (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), np.array([p_b_z]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([z]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([p_a_z]).T, '-')
+            plt.title('asset price: bid/mid/ask for asset z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z,delta_a_z,delta_z]).T, '-')
+            plt.legend(['delta_b','delta_a','delta'])
+            plt.title('spreads (in tick units) for asset z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z, '-')
+            plt.title('market-maker inventory (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s_momentum, '-')
+            plt.title('momentum trades (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z_momentum, '-')
+            plt.title('momentum trades (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s_intra, '-')
+            plt.title('intraday trades (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z_intra, '-')
+            plt.title('intraday trades (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), pnl, '-')
+            plt.title('market-maker pnl (in USD)')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+
+            plt.show()
+
     elif state==3:
         for ind in range(ndays):
             print(ind)
@@ -861,11 +893,11 @@ def model(state):
                 if t%(int(T/nbr_orders_intraday))==0:
             
                    
-                    target_volatility_s = 0.0001 * t * (T- t) / (5000 * T)
+                    target_volatility_s = 0.0001 * t/scale_factor * (T- t) / (5000 * T)
                     new_weights_intraday_s = allocate_funds(pd.DataFrame(np.array([np.array(returns_s[-(sec_allocate_intraday+1):-1]),np.full(len(returns_s[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_s)[0]
                     new_weights_intraday_s_list.append(new_weights_intraday_s[0])
                     
-                    target_volatility_z = 0.0001 * t * (T- t) / (5000 * T)
+                    target_volatility_z = 0.0001 * t/scale_factor * (T- t) / (5000 * T)
                     new_weights_intraday_z = allocate_funds(pd.DataFrame(np.array([np.array(returns_z[-(sec_allocate_intraday+1):-1]),np.full(len(returns_z[-(sec_allocate_intraday+1):-1]), risk_free_rate)]).T, columns=['Risky Asset', 'Risk free rate']), target_volatility_z)[0]
                     new_weights_intraday_z_list.append(new_weights_intraday_z[0])
                     
@@ -1042,77 +1074,125 @@ def model(state):
         
 
         if DisplayPlots:
-             print("Displaying plots -----------------------------")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(T*ndays+1), np.array([p_b_s]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([s]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([p_a_s]).T, '-')
-             plt.title('asset price: bid/mid/ask for asset s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
+            print("Displaying plots -----------------------------")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(T*ndays+1), np.array([p_b_s]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([s]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([p_a_s]).T, '-')
+            plt.title('asset price: bid/mid/ask for asset s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_s,delta_a_s,delta_s]).T, '-')
+            plt.legend(['delta_b','delta_a','delta'])
+            plt.title('spreads (in tick units) for asset s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s, '-')
+            plt.title('market-maker inventory (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), np.array([p_b_z]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([z]).T, '-')
+            plt.plot(range(ndays*T+1), np.array([p_a_z]).T, '-')
+            plt.title('asset price: bid/mid/ask for asset z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z,delta_a_z,delta_z]).T, '-')
+            plt.legend(['delta_b','delta_a','delta'])
+            plt.title('spreads (in tick units) for asset z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z, '-')
+            plt.title('market-maker inventory (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s_momentum, '-')
+            plt.title('momentum trades (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z_momentum, '-')
+            plt.title('momentum trades (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s_intra, '-')
+            plt.title('intraday trades (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z_intra, '-')
+            plt.title('intraday trades (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
             
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_s,delta_a_s,delta_s]).T, '-')
-             plt.legend(['delta_b','delta_a','delta'])
-             plt.title('spreads (in tick units) for asset s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), 1e-3 * q_s, '-')
-             plt.title('market-maker inventory (in K) for s')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-             
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), np.array([p_b_z]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([z]).T, '-')
-             plt.plot(range(ndays*T+1), np.array([p_a_z]).T, '-')
-             plt.title('asset price: bid/mid/ask for asset z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-            
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z,delta_a_z,delta_z]).T, '-')
-             plt.legend(['delta_b','delta_a','delta'])
-             plt.title('spreads (in tick units) for asset z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), 1e-3 * q_z, '-')
-             plt.title('market-maker inventory (in K) for z')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-        
-             plt.figure()
-             ax = plt.gca()
-             ax.ticklabel_format(axis='y', useOffset=False)
-             plt.plot(range(ndays*T+1), pnl, '-')
-             plt.title('market-maker pnl (in USD)')
-             plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
-             plt.xlabel("Days")
-            
-            
-             plt.show()
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_s_markow, '-')
+            plt.title('daily trades (in K) for s')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), 1e-3 * q_z_markow, '-')
+            plt.title('daily trades (in K) for z')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+            plt.figure()
+            ax = plt.gca()
+            ax.ticklabel_format(axis='y', useOffset=False)
+            plt.plot(range(ndays*T+1), pnl, '-')
+            plt.title('market-maker pnl (in USD)')
+            plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
+            plt.xlabel("Days")
+
+
+            plt.show()
+
                           
     else:
         return 0
 
-import math
 def display_corr(tau_max=5000,s=s,z=z):
     
     def artanh(x):
@@ -1178,7 +1258,6 @@ def display_corr_min(tau_max=2880,s_min=s_min, z_min=z_min, IC=True):
         high.append(tanh(artanh(r)+1.96*SE) )
     
     if IC==True:
-        
         plt.plot(BtcEuroverlapping)
         plt.title("Overlapping correlation of Eurusd and Btc  log returns")
         plt.xlabel("Tau : Increments of 1m")
