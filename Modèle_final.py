@@ -220,7 +220,7 @@ def model():
                 trades_z_intra_array[counter] = q0_z_intra
 
             #MOMENTUM TRADERS
-            if (index[-1] - np.mean(index[-sec_momentum:])  > 0): 
+            if (index[counter-1] - np.mean(index[counter-sec_momentum:counter])  > 0): 
                 
                 q0_s_momentum = q_momentum*q0_s 
                 q0_z_momentum = q_momentum*q0_z
