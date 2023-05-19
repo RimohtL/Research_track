@@ -329,7 +329,7 @@ def model():
         plt.figure()
         ax = plt.gca()
         ax.ticklabel_format(axis='y', useOffset=False)
-        plt.plot(range(ndays*T+1), (1./TickSize_s) * np.array([delta_b_z_array,delta_a_z_array,delta_z_array]).T, '-')
+        plt.plot(range(ndays*T+1), (1./TickSize_z) * np.array([delta_b_z_array,delta_a_z_array,delta_z_array]).T, '-')
         plt.legend(['delta_b','delta_a','delta'])
         plt.title('spreads (in tick units) for asset z')
         plt.xticks(range(0,ndays*T+1, int(T*ndays/10)), range(0,ndays+1, int(ndays/10)))
@@ -430,6 +430,7 @@ def display_corr(tau_max=5000,s=s,z=z):
         low.append(tanh(artanh(r)-1.96*SE) )
         high.append(tanh(artanh(r)+1.96*SE) )
     
+    plt.figure()
     plt.plot(BtcEuroverlapping)
     plt.title("Overlapping correlation of Eurusd and Btc log returns")
     plt.xlabel("Tau : Increments of 1s")
@@ -467,7 +468,7 @@ def display_corr_min(tau_max=20000,s=s[::60],z=z[::60], IC=True):
         high.append(tanh(artanh(r)+1.96*SE) )
     
     if IC==True:
-        
+        plt.figure()
         plt.plot(BtcEuroverlapping)
         plt.title("Overlapping correlation of Eurusd and Btc log returns")
         plt.xlabel("Tau : Increments of 1m")
@@ -476,6 +477,7 @@ def display_corr_min(tau_max=20000,s=s[::60],z=z[::60], IC=True):
         plt.plot(low, label='High', c='r')
         plt.legend()
     else:
+        plt.figure()
         plt.plot(BtcEuroverlapping)
         plt.title("Overlapping correlation of Eurusd and Btc log returns")
         plt.xlabel("Tau : Increments of 1m")
