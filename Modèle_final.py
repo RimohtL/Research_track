@@ -307,7 +307,7 @@ def model():
         plt.plot(range(T+1), s.T, '-')
         plt.title('s mid price')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
         plt.figure()
         ax = plt.gca()
@@ -315,7 +315,7 @@ def model():
         plt.plot(range(T+1), z.T, '-')
         plt.title('z mid price')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
         plt.figure()
         ax = plt.gca()
@@ -324,7 +324,7 @@ def model():
         plt.legend(['delta_b','delta_a','delta'])
         plt.title('spreads (in tick units) for asset s')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
         plt.figure()
         ax = plt.gca()
@@ -333,7 +333,7 @@ def model():
         plt.legend(['delta_b','delta_a','delta'])
         plt.title('spreads (in tick units) for asset z')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
         plt.figure()
         ax = plt.gca()
@@ -341,7 +341,7 @@ def model():
         plt.plot(range(T+1), 1e-3 * q_s_array, '-')
         plt.title('market-maker inventory (in K) for s')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
         plt.figure()
         ax = plt.gca()
@@ -349,7 +349,7 @@ def model():
         plt.plot(range(T+1), 1e-3 * q_z_array, '-')
         plt.title('market-maker inventory (in K) for z')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -357,7 +357,7 @@ def model():
         plt.plot(range(T+1), trades_s_noise_array, '-')
         plt.title('noise trades for s')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -365,7 +365,7 @@ def model():
         plt.plot(range(T+1), trades_z_noise_array, '-')
         plt.title('noise trades for z')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -373,7 +373,7 @@ def model():
         plt.plot(range(T+1), inventory_s_momentum_array , '-')
         plt.title('momentum market inventory for s')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -381,7 +381,7 @@ def model():
         plt.plot(range(T+1), inventory_z_momentum_array, '-')
         plt.title('momentum market inventory for z')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -389,7 +389,7 @@ def model():
         plt.plot(range(T+1), trades_s_intra_array, '-')
         plt.title('Long term trades for s')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
         
         plt.figure()
         ax = plt.gca()
@@ -397,7 +397,7 @@ def model():
         plt.plot(range(T+1), trades_z_intra_array, '-')
         plt.title('Long term trades for z')
         plt.xticks(np.arange(0, T+1, int(T/10)))
-        plt.xlabel("Hour")
+        plt.xlabel("Second")
 
 # correlations functions ------
 
